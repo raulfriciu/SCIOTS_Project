@@ -13,6 +13,16 @@ export class RsaPublicKey{
     verify(s) {
         return modPow(s, this.e, this.n);
     }
+
+    blind(m, r) {
+        const re = modPow(BigInt(r), this.e, this.n);
+        return (BigInt(m) * re) % this.n;
+    }
+
+    unblind(s_blinded, r) {
+        const rInv = modInv(BigInt(r), this.n);
+        return (BigInt(s_blinded) * rInv) % this.n;
+    }
 }
 
 export class RsaPrivateKey{
