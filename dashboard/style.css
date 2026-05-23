@@ -42,7 +42,7 @@ body {
   line-height: 1.5;
   min-height: 100vh;
   display: flex;
-  flex-direction: flex-direction;
+  flex-direction: column;
   overflow-x: hidden;
   padding-bottom: 240px; /* Space for the persistent fixed terminal */
 }
@@ -268,13 +268,14 @@ header {
    ========================================================================== */
 .grid-container {
   display: grid;
-  grid-template-columns: 1fr 1.1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 1.5rem;
-  padding: 2rem;
+  padding: 2rem 2rem;
   flex: 1;
-  max-width: 1800px;
-  margin: 0 auto;
+  max-width: 100%;
   width: 100%;
+  align-items: center;
+  position: relative; /* Contain absolute positioned SVG cables */
 }
 
 .grid-column {
@@ -282,11 +283,34 @@ header {
   backdrop-filter: blur(10px);
   border: 1px solid var(--border-card);
   border-radius: 16px;
-  padding: 1.5rem;
+  padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  position: relative; /* Enable z-index */
+  z-index: 2;         /* Render columns above cables */
+}
+
+.column-meters {
+  max-width: 360px;
+  justify-self: start;
+}
+
+.column-proxy {
+  max-width: 380px;
+  justify-self: center;
+}
+
+.column-aggregator {
+  max-width: 380px;
+  justify-self: center;
+}
+
+.column-utility {
+  max-width: 360px;
+  justify-self: end;
 }
 
 .column-header {
@@ -615,15 +639,15 @@ input::-webkit-inner-spin-button {
 /* Ciphertext locked boxes in the aggregator */
 .ciphertext-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.75rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
   min-height: 80px;
   background: #111625;
   border-radius: 8px;
   padding: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.04);
-  align-items: center;
-  justify-content: center;
+  align-items: start;
+  overflow: hidden; /* Prevent any child from bursting out */
 }
 
 .empty-buffer-text {
@@ -639,10 +663,14 @@ input::-webkit-inner-spin-button {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(245, 158, 11, 0.15);
   border-radius: 6px;
-  padding: 0.5rem;
+  padding: 0.5rem 0.4rem;
   text-align: center;
-  animation: scaleIn 0.3s ease;
+  animation: cipherArrive 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
   position: relative;
+  overflow: hidden;   /* clip any text overflows */
+  min-width: 0;       /* critical: allow grid child to shrink below content size */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .cipher-box.combined {
@@ -664,6 +692,10 @@ input::-webkit-inner-spin-button {
   font-size: 0.65rem;
   color: var(--text-muted);
   text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .cipher-box .cipher-snippet {
@@ -674,6 +706,9 @@ input::-webkit-inner-spin-button {
   text-overflow: ellipsis;
   overflow: hidden;
   white-space: nowrap;
+  display: block;
+  width: 100%;
+  max-width: 100%;
 }
 
 /* Mathematical formulas block */
@@ -1226,6 +1261,28 @@ footer {
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* Arrival animation for cipher boxes — synced with cable packet landing */
+@keyframes cipherArrive {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(-8px);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08) translateY(0);
+    box-shadow: 0 0 18px 4px rgba(34, 197, 94, 0.55);
+  }
+  75% {
+    transform: scale(0.97);
+    box-shadow: 0 0 8px 2px rgba(34, 197, 94, 0.25);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
 }
 
 /* General classes */

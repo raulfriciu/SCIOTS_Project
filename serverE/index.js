@@ -1,6 +1,7 @@
 import express from 'express';
 import { generateKeyPair } from '../rsa/rsa.js';
 import { generatePaillierKeyPair } from '../rsa/paillier.js';
+import { modPow } from 'bigint-crypto-utils';
 
 const app = express();
 app.use(express.json());
@@ -16,6 +17,11 @@ console.log('RSA Keypair generated successfully!');
 console.log('Generating Paillier Keypair (1024 bits)...');
 const { publicKey: paillierPublicKey, privateKey: paillierPrivateKey } = generatePaillierKeyPair(1024);
 console.log('Paillier Keypair generated successfully!');
+
+// State variables for Paillier verification/decryption flow
+let pendingCiphertext = null;
+let pendingSignature = null;
+let signatureVerified = false;
 
 // --- RSA Blind Signature Endpoints ---
 
@@ -66,25 +72,102 @@ app.get('/paillier/key', (req, res) => {
   });
 });
 
-// POST /paillier/decrypt - Decrypts ciphertext (representing aggregated sum)
-app.post('/paillier/decrypt', (req, res) => {
-  const { ciphertext } = req.body;
-  console.log(`[HTTP POST] /paillier/decrypt - Request received`);
+// POST /paillier/receive - Receives signed ciphertext and stores it in the central vault
+app.post('/paillier/receive', (req, res) => {
+  const { ciphertext, signature } = req.body;
+  console.log(`[HTTP POST] /paillier/receive - Signed sum received from Aggregator`);
 
-  if (!ciphertext) {
-    console.error('  Error: Missing ciphertext in request body');
-    return res.status(400).json({ error: 'Missing ciphertext' });
+  if (!ciphertext || !signature) {
+    console.error('  Error: Missing ciphertext or signature in request body');
+    return res.status(400).json({ error: 'Missing ciphertext or signature' });
   }
 
   try {
-    const c = BigInt(ciphertext);
-    console.log(`  Ciphertext to decrypt: c_sum = ${c.toString().substring(0, 40)}...`);
+    pendingCiphertext = BigInt(ciphertext);
+    pendingSignature = BigInt(signature);
+    signatureVerified = false;
+    console.log(`  Stored pending ciphertext and signature in Central Vault.`);
+    res.json({
+      success: true,
+      message: 'Signed ciphertext received and stored in Central Vault'
+    });
+  } catch (e) {
+    console.error('  Error storing pending ciphertext:', e.message);
+    res.status(400).json({ error: 'Invalid format' });
+  }
+});
+
+// POST /paillier/verify-signature - Verifies the signature of the stored ciphertext
+app.post('/paillier/verify-signature', async (req, res) => {
+  console.log(`[HTTP POST] /paillier/verify-signature - Request received`);
+
+  if (pendingCiphertext === null || pendingSignature === null) {
+    console.error('  Error: No pending signed ciphertext to verify');
+    return res.status(400).json({ error: 'No pending signed ciphertext to verify' });
+  }
+
+  try {
+    // 1. Fetch the Aggregator's public key
+    console.log('  Fetching Aggregator RSA Public Key for signature verification...');
+    const aggKeyResponse = await fetch('http://127.0.0.1:4000/rsa/key');
+    if (!aggKeyResponse.ok) {
+      throw new Error(`Failed to fetch Aggregator key: ${aggKeyResponse.statusText}`);
+    }
+    const { n: aggN, e: aggE } = await aggKeyResponse.json();
+    const BigN = BigInt(aggN);
+    const BigE = BigInt(aggE);
+    console.log(`  Aggregator Public Key fetched: n = ${BigN.toString().substring(0, 40)}...`);
+
+    // 2. Verify the Aggregator's RSA signature: c_verified = s^e mod n
+    const cVerified = modPow(pendingSignature, BigE, BigN);
+    console.log(`  Verifying signature s^e mod n == c_sum mod n_agg...`);
     
-    // Decrypt the homomorphic sum
-    const sum = paillierPrivateKey.decrypt(c);
+    if (cVerified !== (pendingCiphertext % BigN)) {
+      console.error('  ❌ Signature verification failed! Unauthenticated Aggregator.');
+      signatureVerified = false;
+      return res.status(401).json({ error: 'Signature verification failed! Unauthenticated Aggregator.' });
+    }
+
+    signatureVerified = true;
+    console.log('  ✅ Signature verified successfully! Ready for decryption.');
+    res.json({
+      success: true,
+      verified: true,
+      message: 'Signature verified successfully!'
+    });
+  } catch (e) {
+    console.error('  Error during signature verification:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /paillier/decrypt - Decrypts the stored ciphertext after signature has been verified
+app.post('/paillier/decrypt', (req, res) => {
+  console.log(`[HTTP POST] /paillier/decrypt - Request received`);
+
+  if (pendingCiphertext === null) {
+    console.error('  Error: No ciphertext available to decrypt');
+    return res.status(400).json({ error: 'No ciphertext available to decrypt. Please submit data first.' });
+  }
+
+  if (!signatureVerified) {
+    console.error('  Error: Signature must be verified before decryption!');
+    return res.status(403).json({ error: 'Signature must be verified before decryption!' });
+  }
+
+  try {
+    // 3. Decrypt the homomorphic sum
+    console.log('  Decrypting consolidated sum using Paillier Private Key...');
+    const sum = paillierPrivateKey.decrypt(pendingCiphertext);
     console.log(`  Decryption successful! Plaintext sum = ${sum}`);
     
+    // Clear state
+    pendingCiphertext = null;
+    pendingSignature = null;
+    signatureVerified = false;
+
     res.json({
+      success: true,
       decrypted: sum.toString()
     });
   } catch (e) {

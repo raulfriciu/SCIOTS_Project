@@ -35,13 +35,6 @@
         </div>
       </div>
 
-      <div class="control-group">
-        <span class="control-label">Esquema Criptográfico:</span>
-        <div class="tabs-control">
-          <button id="tabPaillier" class="tab-btn active">Sumas Homomórficas (Paillier)</button>
-          <button id="tabRSA" class="tab-btn">Firmas Ciegas (RSA)</button>
-        </div>
-      </div>
     </div>
 
     <!-- Global System Statuses -->
@@ -60,6 +53,75 @@
 
   <!-- Main Layout Grid -->
   <main class="grid-container">
+    
+    <!-- Connection Cables SVG Overlay -->
+    <svg id="cablesSvg" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible;">
+      <!-- Base cables (dashed background lines): Meters to Proxy CoAP Side -->
+      <path id="cable1" d="" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" stroke-dasharray="5 5" />
+      <path id="cable2" d="" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" stroke-dasharray="5 5" />
+      <path id="cable3" d="" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" stroke-dasharray="5 5" />
+
+      <!-- Active glowing cables (pulse glow when packet travels): Meters to Proxy CoAP Side -->
+      <path id="cable1Active" d="" fill="none" stroke="var(--color-primary)" stroke-width="3" opacity="0" style="transition: opacity 0.3s; filter: drop-shadow(0 0 5px var(--color-primary-glow));" />
+      <path id="cable2Active" d="" fill="none" stroke="var(--color-primary)" stroke-width="3" opacity="0" style="transition: opacity 0.3s; filter: drop-shadow(0 0 5px var(--color-primary-glow));" />
+      <path id="cable3Active" d="" fill="none" stroke="var(--color-primary)" stroke-width="3" opacity="0" style="transition: opacity 0.3s; filter: drop-shadow(0 0 5px var(--color-primary-glow));" />
+
+      <!-- Animated packet particles: Meters to Proxy CoAP Side -->
+      <g id="packet1" style="display: none;">
+        <circle r="6" fill="var(--color-primary)" style="filter: drop-shadow(0 0 8px var(--color-primary));">
+          <animateMotion id="motion1" dur="1.0s" repeatCount="1" fill="freeze" begin="indefinite" />
+        </circle>
+      </g>
+      <g id="packet2" style="display: none;">
+        <circle r="6" fill="var(--color-primary)" style="filter: drop-shadow(0 0 8px var(--color-primary));">
+          <animateMotion id="motion2" dur="1.0s" repeatCount="1" fill="freeze" begin="indefinite" />
+        </circle>
+      </g>
+      <g id="packet3" style="display: none;">
+        <circle r="6" fill="var(--color-primary)" style="filter: drop-shadow(0 0 8px var(--color-primary));">
+          <animateMotion id="motion3" dur="1.0s" repeatCount="1" fill="freeze" begin="indefinite" />
+        </circle>
+      </g>
+
+      <!-- Base cables: Proxy HTTP Side to Aggregator -->
+      <path id="cable1_to_agg" d="" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" stroke-dasharray="5 5" />
+      <path id="cable2_to_agg" d="" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" stroke-dasharray="5 5" />
+      <path id="cable3_to_agg" d="" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" stroke-dasharray="5 5" />
+
+      <!-- Active glowing cables: Proxy HTTP Side to Aggregator -->
+      <path id="cable1_to_aggActive" d="" fill="none" stroke="var(--color-success)" stroke-width="3" opacity="0" style="transition: opacity 0.3s; filter: drop-shadow(0 0 5px var(--color-success-glow));" />
+      <path id="cable2_to_aggActive" d="" fill="none" stroke="var(--color-success)" stroke-width="3" opacity="0" style="transition: opacity 0.3s; filter: drop-shadow(0 0 5px var(--color-success-glow));" />
+      <path id="cable3_to_aggActive" d="" fill="none" stroke="var(--color-success)" stroke-width="3" opacity="0" style="transition: opacity 0.3s; filter: drop-shadow(0 0 5px var(--color-success-glow));" />
+
+      <!-- Animated packet particles: Proxy HTTP Side to Aggregator -->
+      <g id="packet1_to_agg" style="display: none;">
+        <circle r="6" fill="var(--color-success)" style="filter: drop-shadow(0 0 8px var(--color-success));">
+          <animateMotion id="motion1_to_agg" dur="1.0s" repeatCount="1" fill="freeze" begin="indefinite" />
+        </circle>
+      </g>
+      <g id="packet2_to_agg" style="display: none;">
+        <circle r="6" fill="var(--color-success)" style="filter: drop-shadow(0 0 8px var(--color-success));">
+          <animateMotion id="motion2_to_agg" dur="1.0s" repeatCount="1" fill="freeze" begin="indefinite" />
+        </circle>
+      </g>
+      <g id="packet3_to_agg" style="display: none;">
+        <circle r="6" fill="var(--color-success)" style="filter: drop-shadow(0 0 8px var(--color-success));">
+          <animateMotion id="motion3_to_agg" dur="1.0s" repeatCount="1" fill="freeze" begin="indefinite" />
+        </circle>
+      </g>
+      <!-- Base cable: Aggregator to Utility -->
+      <path id="cable_agg_to_util" d="" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2" stroke-dasharray="5 5" />
+
+      <!-- Active glowing cable: Aggregator to Utility (amber/gold = signed transmission) -->
+      <path id="cable_agg_to_utilActive" d="" fill="none" stroke="var(--color-accent)" stroke-width="3" opacity="0" style="transition: opacity 0.3s; filter: drop-shadow(0 0 6px rgba(245,158,11,0.8));" />
+
+      <!-- Animated packet: Aggregator to Utility -->
+      <g id="packet_agg_to_util" style="display: none;">
+        <circle r="7" fill="var(--color-accent)" style="filter: drop-shadow(0 0 10px rgba(245,158,11,0.9));">
+          <animateMotion id="motion_agg_to_util" dur="1.2s" repeatCount="1" fill="freeze" begin="indefinite" />
+        </circle>
+      </g>
+    </svg>
     
     <!-- Column 1: Smart Meters (Contadores) -->
     <section class="grid-column column-meters">
@@ -162,21 +224,19 @@
       </div>
     </section>
 
-    <!-- Column 2: Gateway & Agregador -->
-    <section class="grid-column column-aggregator">
-      
-      <!-- Network Gateway Visualizer -->
+    <!-- Column 2: Gateway / Traducción -->
+    <section class="grid-column column-proxy">
       <div class="column-header">
         <div class="column-number">2</div>
-        <h2>Traducción y Agregación <span class="badge badge-accent">Canal & Agregador</span></h2>
+        <h2>Pasarela de Traducción <span class="badge">Proxy CoAP-HTTP</span></h2>
       </div>
-      <p class="column-description">El Proxy traduce CoAP (UDP) a HTTP (TCP). El Agregador almacena y suma los consumos de forma homomórfica.</p>
+      <p class="column-description">El Proxy CoAP-HTTP traduce las peticiones binarias UDP (CoAP) a peticiones JSON TCP (HTTP) en tiempo real.</p>
 
       <!-- Proxy Visual Component -->
-      <div class="proxy-visual-box">
+      <div class="proxy-visual-box" id="proxyBox" style="flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 1rem;">
         <h4>Canal de Red (Proxy Inverso)</h4>
         <div class="pipeline">
-          <div class="pipeline-half pipeline-coap">
+          <div class="pipeline-half pipeline-coap" id="coapSide">
             <span class="protocol-title">CoAP (UDP)</span>
             <div class="port-info" id="coapPortLabel">Puerto UDP 5685</div>
           </div>
@@ -184,29 +244,46 @@
             <div class="flow-particles" id="particles"></div>
             <div class="proxy-node">⇄</div>
           </div>
-          <div class="pipeline-half pipeline-http">
+          <div class="pipeline-half pipeline-http" id="httpSide">
             <span class="protocol-title">HTTP (JSON)</span>
             <div class="port-info" id="httpPortLabel">Puerto TCP 4000</div>
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- Column 3: Servidor Agregador -->
+    <section class="grid-column column-aggregator">
+      <div class="column-header">
+        <div class="column-number">3</div>
+        <h2>Agregador Homomórfico <span class="badge badge-accent">Servidor</span></h2>
+      </div>
+      <p class="column-description">Almacena consumos cifrados de hogares de forma ciega y los multiplica modulo n² sin descifrarlos.</p>
 
       <!-- Aggregator Container -->
-      <div class="aggregator-card">
+      <div class="aggregator-card" id="aggregatorCard" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
         <div class="aggregator-header">
           <div class="aggregator-icon">📊</div>
           <h3>Servidor Agregador (Terceros)</h3>
         </div>
         
-        <div class="aggregator-body">
+        <div class="aggregator-body" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem;">
+          <!-- Aggregator Key Vault -->
+          <div class="key-vault paillier-only" style="margin-bottom: 0.25rem;">
+            <div class="key-badge public-key" style="border-color: rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.05); color: #fbbf24; display: flex; justify-content: space-between; font-size: 0.7rem; font-family: 'JetBrains Mono', monospace; padding: 0.35rem 0.6rem; border-radius: 4px;">
+              <span>Clave Pública Agregador:</span>
+              <span id="aggPubKeyVal" style="max-width: 150px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap; direction: rtl;">Cargando...</span>
+            </div>
+          </div>
+
           <!-- Paillier Buffer Visualizer -->
-          <div class="paillier-only">
+          <div class="paillier-only" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; gap: 0.5rem;">
             <div class="buffer-status">
               <span>Buzón de Cifrados Recibidos:</span>
               <span class="buffer-count" id="bufferCount">0 / 3</span>
             </div>
             
-            <div class="ciphertext-grid" id="ciphertextGrid">
+            <div class="ciphertext-grid" id="ciphertextGrid" style="flex: 1; min-height: 120px;">
               <div class="empty-buffer-text">Buzón vacío. Envía consumos cifrados desde los contadores.</div>
             </div>
 
@@ -218,6 +295,7 @@
 
             <div class="aggregator-actions">
               <button class="btn btn-primary" id="btnAggregate" disabled onclick="triggerAggregation()">Sumar Homomórficamente</button>
+              <button class="btn btn-decrypt hidden" id="btnSignSend" onclick="triggerSignAndSend()">✍️ Firmar y Enviar</button>
               <button class="btn btn-outline" id="btnResetBuffer" onclick="resetBuffer()">Vaciar Buzón</button>
             </div>
           </div>
@@ -227,7 +305,7 @@
             <div class="rsa-agg-placeholder">
               <div class="lock-visual-icon" id="rsaVisualIcon">✉️</div>
               <h4 id="rsaAggStatusTitle">Esperando Petición Cegada</h4>
-              <p id="rsaAggStatusDesc">Las firmas ciegas RSA no se acumulan. Viajan directamente a través de la pasarela para ser firmadas por la central de forma individual.</p>
+              <p id="rsaAggStatusDesc">Las firmas ciegas RSA no se acumulan. Viajan directamente a través de la pasarela para ser firmadas por la central de forma de transacciones individuales.</p>
               
               <div class="rsa-steps-visual hidden" id="rsaStepsBox">
                 <div class="rsa-step-item" id="rsaStep1">
@@ -253,15 +331,15 @@
       </div>
     </section>
 
-    <!-- Column 3: Utility Company (Compañía Eléctrica) -->
+    <!-- Column 4: Utility Company (Compañía Eléctrica) -->
     <section class="grid-column column-utility">
       <div class="column-header">
-        <div class="column-number">3</div>
+        <div class="column-number">4</div>
         <h2>Compañía Eléctrica <span class="badge badge-server">Central</span></h2>
       </div>
       <p class="column-description">Dueña de las claves privadas. Descifra el consumo total o firma las peticiones ciegas.</p>
 
-      <div class="utility-card">
+      <div class="utility-card" id="utilityCard">
         <div class="utility-header">
           <div class="utility-icon">🏦</div>
           <h3>Bóveda Criptográfica Central</h3>
@@ -281,8 +359,9 @@
               <p id="utilityReceiveDesc">El agregador enviará un único candado matemático acumulado.</p>
             </div>
 
-            <div class="utility-actions">
-              <button class="btn btn-decrypt btn-large" id="btnDecrypt" disabled onclick="decryptSum()">Descifrar Consumo con Clave Privada</button>
+            <div class="utility-actions" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
+              <button class="btn btn-primary btn-large" id="btnVerifySig" disabled onclick="verifySignature()">1. Verificar Firma del Agregador</button>
+              <button class="btn btn-decrypt btn-large hidden" id="btnDecrypt" disabled onclick="decryptSum()">2. Descifrar Consumo con Clave Privada</button>
             </div>
 
             <!-- Ledger Results -->

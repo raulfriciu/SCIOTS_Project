@@ -64,23 +64,31 @@ async function run() {
     const res2 = await coapPost(submitUrl, { ciphertext: c2.toString() }, isSecure, user, key);
     console.log(`  Response: ${res2.message} (Buffer size: ${res2.bufferSize})`);
 
-    // Step 4: Ask the Aggregator to aggregate and call Decryptor
-    console.log(`\nStep 4: Requesting Aggregator to perform homomorphic sum...`);
+    // Step 4: Ask the Aggregator to aggregate and package the sum (mod n^2)
+    console.log(`\nStep 4: Requesting Aggregator to perform homomorphic sum (packaging)...`);
     const aggUrl = `${protocol}://${host}:${aggregatorPort}/paillier/aggregate`;
     const aggRes = await coapPost(aggUrl, {}, isSecure, user, key);
 
-    console.log(`  Aggregator combined ciphertext c_sum = c1 * c2 mod n^2`);
-    console.log(`  Aggregator received plaintext sum from Decryptor: ${aggRes.decryptedSum}`);
+    console.log(`  Aggregator combined ciphertexts mod n^2 successfully!`);
+    console.log(`  c_sum = ${aggRes.ciphertextSum.substring(0, 40)}...`);
 
-    // Step 5: Verify the result
+    // Step 5: Ask the Aggregator to sign and send to serverE for decryption
+    console.log(`\nStep 5: Requesting Aggregator to sign and submit sum to Central Decryptor...`);
+    const signSendUrl = `${protocol}://${host}:${aggregatorPort}/paillier/sign-and-send`;
+    const signSendRes = await coapPost(signSendUrl, {}, isSecure, user, key);
+
+    console.log(`  Aggregator generated RSA signature: ${signSendRes.signature.substring(0, 40)}...`);
+    console.log(`  Decryption Server verified signature and returned decrypted sum: ${signSendRes.decryptedSum} kWh`);
+
+    // Step 6: Verify the result
     const expectedSum = v1 + v2;
-    console.log(`\nStep 5: Verifying result locally...`);
+    console.log(`\nStep 6: Verifying result locally...`);
     console.log(`  Expected Sum: ${v1} + ${v2} = ${expectedSum}`);
-    console.log(`  Aggregated Decrypted Sum: ${aggRes.decryptedSum}`);
+    console.log(`  Aggregated Decrypted Sum: ${signSendRes.decryptedSum}`);
 
-    if (BigInt(aggRes.decryptedSum) === expectedSum) {
+    if (BigInt(signSendRes.decryptedSum) === expectedSum) {
       console.log('\n✅ PAILLIER HOMOMORPHIC ENCRYPTION SUCCESS!');
-      console.log('   The aggregator successfully summed encrypted values without decrypting them!');
+      console.log('   The aggregator successfully summed encrypted values without decrypting them, signed the result, and got it verified/decrypted by Central!');
     } else {
       console.error('\n❌ PAILLIER HOMOMORPHIC ENCRYPTION FAILURE!');
       console.error('   The decrypted sum does not match the mathematical expectation!');
