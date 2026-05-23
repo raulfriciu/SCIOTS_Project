@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SCIOTS Secure Smart Grid Dashboard</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <!-- Local Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="header-logo">
+      <div class="pulse-icon">⚡</div>
+      <div>
+        <h1>SCIOTS Smart Grid</h1>
+        <p>Demostración de Criptografía Avanzada en IoT (CoAP / CoAPs)</p>
+      </div>
+    </div>
+
+    <!-- Mode Selector Controls -->
+    <div class="controls-panel">
+      <div class="control-group">
+        <span class="control-label">Protocolo:</span>
+        <div class="toggle-switch">
+          <input type="checkbox" id="secureModeToggle">
+          <label for="secureModeToggle">
+            <span class="toggle-inner" data-on="CoAPs (DTLS)" data-off="CoAP (Plano)"></span>
+            <span class="toggle-switch-handle"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <span class="control-label">Esquema Criptográfico:</span>
+        <div class="tabs-control">
+          <button id="tabPaillier" class="tab-btn active">Sumas Homomórficas (Paillier)</button>
+          <button id="tabRSA" class="tab-btn">Firmas Ciegas (RSA)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Global System Statuses -->
+    <div class="system-status">
+      <div class="status-indicator" id="statusServerE">
+        <span class="status-dot"></span> ServerE (Puerto 3000)
+      </div>
+      <div class="status-indicator" id="statusAggregator">
+        <span class="status-dot"></span> Agregador (Puerto 4000)
+      </div>
+      <div class="status-indicator" id="statusProxy">
+        <span class="status-dot"></span> Proxy CoAP-HTTP
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Layout Grid -->
+  <main class="grid-container">
+    
+    <!-- Column 1: Smart Meters (Contadores) -->
+    <section class="grid-column column-meters">
+      <div class="column-header">
+        <div class="column-number">1</div>
+        <h2>Contadores Inteligentes <span class="badge">Clientes</span></h2>
+      </div>
+      <p class="column-description">Simulan dispositivos IoT en hogares. Envían datos cifrados o cegados con la clave pública de la eléctrica.</p>
+
+      <div class="meters-container">
+        <!-- Meter 1 -->
+        <div class="meter-card" id="meter1">
+          <div class="meter-header">
+            <div class="meter-icon">🏠</div>
+            <h3>Contador Hogar 1</h3>
+            <span class="status-badge">Conectado</span>
+          </div>
+          <div class="meter-body">
+            <!-- Paillier Input -->
+            <div class="input-block paillier-only">
+              <label for="valMeter1">Consumo Eléctrico (kWh):</label>
+              <div class="input-wrapper">
+                <input type="number" id="valMeter1" value="15" min="0" max="999">
+                <span class="unit">kWh</span>
+              </div>
+            </div>
+            <!-- RSA Input -->
+            <div class="input-block rsa-only hidden">
+              <label for="msgMeter1">Voto o Token ID (Numérico):</label>
+              <div class="input-wrapper">
+                <input type="number" id="msgMeter1" value="67890" min="1">
+              </div>
+            </div>
+          </div>
+          <div class="meter-actions">
+            <button class="btn btn-send paillier-only" onclick="sendMeterData(1, 'paillier')">Enviar Cifrado</button>
+            <button class="btn btn-send rsa-only hidden" onclick="sendMeterData(1, 'rsa')">Enviar Cegado</button>
+          </div>
+        </div>
+
+        <!-- Meter 2 -->
+        <div class="meter-card" id="meter2">
+          <div class="meter-header">
+            <div class="meter-icon">🏢</div>
+            <h3>Contador Comercio 2</h3>
+            <span class="status-badge">Conectado</span>
+          </div>
+          <div class="meter-body">
+            <!-- Paillier Input -->
+            <div class="input-block paillier-only">
+              <label for="valMeter2">Consumo Eléctrico (kWh):</label>
+              <div class="input-wrapper">
+                <input type="number" id="valMeter2" value="27" min="0" max="999">
+                <span class="unit">kWh</span>
+              </div>
+            </div>
+            <!-- RSA Input -->
+            <div class="input-block rsa-only hidden">
+              <label for="msgMeter2">Voto o Token ID (Numérico):</label>
+              <div class="input-wrapper">
+                <input type="number" id="msgMeter2" value="55555" min="1">
+              </div>
+            </div>
+          </div>
+          <div class="meter-actions">
+            <button class="btn btn-send paillier-only" onclick="sendMeterData(2, 'paillier')">Enviar Cifrado</button>
+            <button class="btn btn-send rsa-only hidden" onclick="sendMeterData(2, 'rsa')">Enviar Cegado</button>
+          </div>
+        </div>
+
+        <!-- Meter 3 -->
+        <div class="meter-card" id="meter3">
+          <div class="meter-header">
+            <div class="meter-icon">🏭</div>
+            <h3>Contador Industria 3</h3>
+            <span class="status-badge">Conectado</span>
+          </div>
+          <div class="meter-body">
+            <!-- Paillier Input -->
+            <div class="input-block paillier-only">
+              <label for="valMeter3">Consumo Eléctrico (kWh):</label>
+              <div class="input-wrapper">
+                <input type="number" id="valMeter3" value="10" min="0" max="999">
+                <span class="unit">kWh</span>
+              </div>
+            </div>
+            <!-- RSA Input -->
+            <div class="input-block rsa-only hidden">
+              <label for="msgMeter3">Voto o Token ID (Numérico):</label>
+              <div class="input-wrapper">
+                <input type="number" id="msgMeter3" value="99999" min="1">
+              </div>
+            </div>
+          </div>
+          <div class="meter-actions">
+            <button class="btn btn-send paillier-only" onclick="sendMeterData(3, 'paillier')">Enviar Cifrado</button>
+            <button class="btn btn-send rsa-only hidden" onclick="sendMeterData(3, 'rsa')">Enviar Cegado</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Column 2: Gateway & Agregador -->
+    <section class="grid-column column-aggregator">
+      
+      <!-- Network Gateway Visualizer -->
+      <div class="column-header">
+        <div class="column-number">2</div>
+        <h2>Traducción y Agregación <span class="badge badge-accent">Canal & Agregador</span></h2>
+      </div>
+      <p class="column-description">El Proxy traduce CoAP (UDP) a HTTP (TCP). El Agregador almacena y suma los consumos de forma homomórfica.</p>
+
+      <!-- Proxy Visual Component -->
+      <div class="proxy-visual-box">
+        <h4>Canal de Red (Proxy Inverso)</h4>
+        <div class="pipeline">
+          <div class="pipeline-half pipeline-coap">
+            <span class="protocol-title">CoAP (UDP)</span>
+            <div class="port-info" id="coapPortLabel">Puerto UDP 5685</div>
+          </div>
+          <div class="pipeline-connector">
+            <div class="flow-particles" id="particles"></div>
+            <div class="proxy-node">⇄</div>
+          </div>
+          <div class="pipeline-half pipeline-http">
+            <span class="protocol-title">HTTP (JSON)</span>
+            <div class="port-info" id="httpPortLabel">Puerto TCP 4000</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Aggregator Container -->
+      <div class="aggregator-card">
+        <div class="aggregator-header">
+          <div class="aggregator-icon">📊</div>
+          <h3>Servidor Agregador (Terceros)</h3>
+        </div>
+        
+        <div class="aggregator-body">
+          <!-- Paillier Buffer Visualizer -->
+          <div class="paillier-only">
+            <div class="buffer-status">
+              <span>Buzón de Cifrados Recibidos:</span>
+              <span class="buffer-count" id="bufferCount">0 / 3</span>
+            </div>
+            
+            <div class="ciphertext-grid" id="ciphertextGrid">
+              <div class="empty-buffer-text">Buzón vacío. Envía consumos cifrados desde los contadores.</div>
+            </div>
+
+            <div class="crypt-formula hidden" id="paillierFormulaBox">
+              <strong>Matemáticas en el Agregador (Homomórfico):</strong>
+              <div class="formula-text">c_sum = c₁ * c₂ * c₃ mod n²</div>
+              <div class="formula-details" id="paillierFormulaDetails"></div>
+            </div>
+
+            <div class="aggregator-actions">
+              <button class="btn btn-primary" id="btnAggregate" disabled onclick="triggerAggregation()">Sumar Homomórficamente</button>
+              <button class="btn btn-outline" id="btnResetBuffer" onclick="resetBuffer()">Vaciar Buzón</button>
+            </div>
+          </div>
+
+          <!-- RSA Blind Flow Status -->
+          <div class="rsa-only hidden">
+            <div class="rsa-agg-placeholder">
+              <div class="lock-visual-icon" id="rsaVisualIcon">✉️</div>
+              <h4 id="rsaAggStatusTitle">Esperando Petición Cegada</h4>
+              <p id="rsaAggStatusDesc">Las firmas ciegas RSA no se acumulan. Viajan directamente a través de la pasarela para ser firmadas por la central de forma individual.</p>
+              
+              <div class="rsa-steps-visual hidden" id="rsaStepsBox">
+                <div class="rsa-step-item" id="rsaStep1">
+                  <div class="step-num">1</div>
+                  <span>Clave Pública RSA Recibida</span>
+                </div>
+                <div class="rsa-step-item" id="rsaStep2">
+                  <div class="step-num">2</div>
+                  <span>Mensaje Cegado: m'</span>
+                </div>
+                <div class="rsa-step-item" id="rsaStep3">
+                  <div class="step-num">3</div>
+                  <span>Firma Recibida: s'</span>
+                </div>
+                <div class="rsa-step-item" id="rsaStep4">
+                  <div class="step-num">4</div>
+                  <span>Descegado & Verificación</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Column 3: Utility Company (Compañía Eléctrica) -->
+    <section class="grid-column column-utility">
+      <div class="column-header">
+        <div class="column-number">3</div>
+        <h2>Compañía Eléctrica <span class="badge badge-server">Central</span></h2>
+      </div>
+      <p class="column-description">Dueña de las claves privadas. Descifra el consumo total o firma las peticiones ciegas.</p>
+
+      <div class="utility-card">
+        <div class="utility-header">
+          <div class="utility-icon">🏦</div>
+          <h3>Bóveda Criptográfica Central</h3>
+        </div>
+
+        <div class="utility-body">
+          <div class="key-vault">
+            <div class="key-badge public-key">Clave Pública: <span id="pubKeyVal">Cargando...</span></div>
+            <div class="key-badge private-key">Clave Privada: <span>🔒 Almacenada en Bóveda</span></div>
+          </div>
+
+          <!-- Paillier Receiving Panel -->
+          <div class="paillier-only">
+            <div class="utility-receive-box" id="utilityReceiveBox">
+              <div class="lock-illustration" id="paillierCombinedLock">🔒</div>
+              <h4 id="utilityReceiveTitle">Esperando Cifrado Agregado</h4>
+              <p id="utilityReceiveDesc">El agregador enviará un único candado matemático acumulado.</p>
+            </div>
+
+            <div class="utility-actions">
+              <button class="btn btn-decrypt btn-large" id="btnDecrypt" disabled onclick="decryptSum()">Descifrar Consumo con Clave Privada</button>
+            </div>
+
+            <!-- Ledger Results -->
+            <div class="ledger-box hidden" id="ledgerBox">
+              <h4>Libro de Cuentas Consolidado</h4>
+              <div class="ledger-row">
+                <span>Consumo Total Registrado:</span>
+                <span class="ledger-value" id="ledgerConsumoVal">0 kWh</span>
+              </div>
+              <div class="security-stamp">
+                <span class="shield-icon">🛡️</span> Privacidad Garantizada: Los consumos de hogares individuales nunca fueron revelados.
+              </div>
+            </div>
+          </div>
+
+          <!-- RSA Receiving Panel -->
+          <div class="rsa-only hidden">
+            <div class="utility-receive-box" id="rsaReceiveBox">
+              <div class="lock-illustration" id="rsaLockIllustration">🔓</div>
+              <h4 id="rsaReceiveTitle">Esperando Mensaje Cegado</h4>
+              <p id="rsaReceiveDesc">Firmará cualquier mensaje cegado (m') con su clave privada.</p>
+            </div>
+
+            <div class="rsa-verification-box hidden" id="rsaVerifyBox">
+              <h4>Verificación en el Cliente</h4>
+              <div class="rsa-result-row">
+                <span>Mensaje Original:</span>
+                <span class="rsa-res-val" id="rsaOriginalVal">-</span>
+              </div>
+              <div class="rsa-result-row">
+                <span>Firma Descegada (s):</span>
+                <span class="rsa-res-val crypto-val" id="rsaFinalSigVal">-</span>
+              </div>
+              <div class="rsa-result-row">
+                <span>Verificación (s^e mod n):</span>
+                <span class="rsa-res-val" id="rsaVerificationVal">-</span>
+              </div>
+              <div class="verification-badge" id="rsaVerificationBadge">
+                Verificación Pendiente
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Live Logs Terminal Component -->
+  <footer>
+    <div class="terminal-header">
+      <div class="terminal-title">
+        <span class="terminal-icon">❯_</span>
+        <h3>Terminal de logs del sistema (CoAP / HTTP Cripto-Transacciones)</h3>
+      </div>
+      <div class="terminal-actions">
+        <button class="btn-clear" onclick="clearLogs()">Limpiar logs</button>
+      </div>
+    </div>
+    <div class="terminal-body" id="logsTerminal">
+      <div class="log-line system-line">[SISTEMA] Inicializando Consola de Logs SCIOTS... Listo.</div>
+    </div>
+  </footer>
+
+  <!-- App Logic -->
+  <script src="app.js"></script>
+</body>
+</html>

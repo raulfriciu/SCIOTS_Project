@@ -1,0 +1,15 @@
+{
+  "name": "sciots-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Interactive GUI Dashboard for SCIOTS Smart Grid Metaphor",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "coap": "^1.3.1",
+    "bigint-crypto-utils": "^3.3.0"
+  }
+}
