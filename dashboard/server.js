@@ -5,8 +5,6 @@ import net from 'net';
 import { exec, execSync } from 'child_process';
 import os from 'os';
 import { coapGet, coapPost } from '../client/coap_client_wrapper.js';
-import { PaillierPublicKey } from '../rsa/paillier.js';
-import { gcd, modPow, modInv } from 'bigint-crypto-utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -152,22 +150,23 @@ function checkProxyProcess() {
 
 // Endpoint: Check system statuses
 app.get('/api/status', async (req, res) => {
-  const isServerEActive = await checkTcpPort(3000);
+  const isServerEActive   = await checkTcpPort(3000);
   const isAggregatorActive = await checkTcpPort(4000);
-  const isProxyActive = await checkProxyProcess();
+  const isMetersActive    = await checkTcpPort(6000);
+  const isProxyActive     = await checkProxyProcess();
 
   res.json({
-    serverE: isServerEActive,
+    serverE:    isServerEActive,
     aggregator: isAggregatorActive,
-    proxy: isProxyActive
+    meters:     isMetersActive,
+    proxy:      isProxyActive
   });
 });
 
 // Endpoint: Get Aggregator RSA Public Key
 app.get('/api/aggregator/key', async (req, res) => {
   try {
-    const host = await getActiveHostForPort(4000);
-    const response = await fetch(`http://${host}:4000/rsa/key`);
+    const response = await fetch('http://127.0.0.1:4000/rsa/key');
     const data = await response.json();
     res.json(data);
   } catch (e) {
@@ -175,41 +174,15 @@ app.get('/api/aggregator/key', async (req, res) => {
   }
 });
 
-// Endpoint: Get Paillier Public Key directly from serverE (no aggregation side effect)
+// Endpoint: Get Paillier Public Key — fetched by the meters service via CoAP at startup
+// The dashboard just asks the meters service for the cached key.
 app.get('/api/paillier-key', async (req, res) => {
   const { isSecure } = req.query;
-  const secure = isSecure === 'true';
-  const port = secure ? 5684 : 5683;
-  const protocol = secure ? 'coaps' : 'coap';
-  const user = 'clientA';
-  const key = 'EiAT3eboMqOa0ddtwsiX57JUBnw08ClON7wLR7n8N2M=';
   try {
-    const keyUrl = `${protocol}://127.0.0.1:${port}/paillier/key`;
-    const pubKeyData = await coapGet(keyUrl, secure, user, key);
-    if (!pubKeyData || !pubKeyData.n) {
-      return res.status(503).json({ error: 'serverE no responde' });
-    }
-    res.json(pubKeyData);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// Endpoint: Get RSA Public Key directly from serverE (no side effect)
-app.get('/api/rsa-key', async (req, res) => {
-  const { isSecure } = req.query;
-  const secure = isSecure === 'true';
-  const port = secure ? 5684 : 5683;
-  const protocol = secure ? 'coaps' : 'coap';
-  const user = 'clientE';
-  const key = '9yPztDNbbBkV41JIhL833lfXX+zyBfPaD8VLCK0C88w=';
-  try {
-    const keyUrl = `${protocol}://127.0.0.1:${port}/rsa/key`;
-    const pubKeyData = await coapGet(keyUrl, secure, user, key);
-    if (!pubKeyData || !pubKeyData.n) {
-      return res.status(503).json({ error: 'serverE no responde' });
-    }
-    res.json(pubKeyData);
+    const response = await fetch(`http://127.0.0.1:6000/paillier-key?isSecure=${isSecure || 'false'}`);
+    const data = await response.json();
+    if (!data.n) return res.status(503).json({ error: 'Meters service no responde o clave no cargada' });
+    res.json(data);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -227,71 +200,68 @@ app.post('/api/logs/clear', (req, res) => {
 });
 
 // Endpoint: Send Paillier Encrypted Value from a Meter
+// Delegates the actual encryption + CoAP send to the meters service (port 6000),
+// which is the architecturally correct component to perform this as an IoT device.
 app.post('/api/send-paillier', async (req, res) => {
   const { meterId, value, isSecure } = req.body;
-  const numValue = BigInt(value);
-  
-  const host = '127.0.0.1';
-  const decryptorPort = isSecure ? 5684 : 5683;
-  const aggregatorPort = isSecure ? 5686 : 5685;
-  const protocol = isSecure ? 'coaps' : 'coap';
-  
-  const user = 'clientA';
-  const key = 'EiAT3eboMqOa0ddtwsiX57JUBnw08ClON7wLR7n8N2M=';
 
-  logEvent(`Meter ${meterId}`, 'START', `Starting Paillier Homomorphic Flow for consumption: ${value} kWh`);
+  logEvent(`Meter ${meterId}`, 'START', `Delegating Paillier send to meters service: value = ${value} kWh`);
 
-  try {
-    // Step 1: Fetch the Paillier Public Key from Decryption Server
-    const keyUrl = `${protocol}://${host}:${decryptorPort}/paillier/key`;
-    logEvent(`Meter ${meterId}`, 'COAP_REQ', `[GET] Fetching Paillier Public Key from Decryption Server via Proxy...`, { url: keyUrl });
-    
-    const pubKeyData = await coapGet(keyUrl, isSecure, user, key);
-    if (!pubKeyData || !pubKeyData.n || !pubKeyData.g) {
-      throw new Error("No se pudo obtener la clave pública Paillier de serverE. Comprueba que el servidor y los proxies estén corriendo.");
-    }
-    const n = BigInt(pubKeyData.n);
-    const g = BigInt(pubKeyData.g);
-    
-    logEvent(`Meter ${meterId}`, 'COAP_RES', `Successfully fetched Paillier Public Key`, {
-      n: n.toString(),
-      g: g.toString()
-    });
+  const payload = JSON.stringify({ value, isSecure });
 
-    // Step 2: Encrypt the value locally
-    logEvent(`Meter ${meterId}`, 'CRYPT', `Encrypting value locally: v = ${value}`);
-    const publicKey = new PaillierPublicKey(n, g);
-    const ciphertext = publicKey.encrypt(numValue);
-    
-    logEvent(`Meter ${meterId}`, 'CRYPT', `Generated ciphertext: c = ${ciphertext.toString().substring(0, 30)}...`);
-
-    // Step 3: Send encrypted data to the Aggregator
-    const submitUrl = `${protocol}://${host}:${aggregatorPort}/paillier/submit`;
-    logEvent(`Meter ${meterId}`, 'COAP_REQ', `[POST] Submitting ciphertext to Aggregator via Proxy...`, {
-      url: submitUrl,
-      ciphertext: ciphertext.toString()
-    });
-
-    const submitResponse = await coapPost(submitUrl, { ciphertext: ciphertext.toString() }, isSecure, user, key);
-    
-    logEvent(`Meter ${meterId}`, 'COAP_RES', `Aggregator Response: ${submitResponse.message} (Buffer size: ${submitResponse.bufferSize})`);
-
-    res.json({
-      success: true,
-      step: 'SUBMITTED',
-      details: {
-        n: n.toString(),
-        g: g.toString(),
-        value: value.toString(),
-        ciphertext: ciphertext.toString(),
-        bufferSize: submitResponse.bufferSize
+  // Use raw HTTP request to ensure maximum reliability and avoid fetch header/resolution bugs in WSL Node 18
+  import('http').then((http) => {
+    const postReq = http.request({
+      host: '127.0.0.1',
+      port: 6000,
+      path: `/meter/${meterId}/send`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
       }
+    }, (postRes) => {
+      let body = '';
+      postRes.setEncoding('utf8');
+      postRes.on('data', (chunk) => body += chunk);
+      postRes.on('end', () => {
+        try {
+          const data = JSON.parse(body);
+          if (!postRes.statusCode || postRes.statusCode >= 400 || !data.success) {
+            throw new Error(data.error || `Meters service returned status ${postRes.statusCode}`);
+          }
+
+          logEvent(`Meter ${meterId}`, 'COAP_RES', `Ciphertext submitted to aggregator (buffer: ${data.bufferSize})`);
+
+          res.json({
+            success: true,
+            step: 'SUBMITTED',
+            details: {
+              n:          data.n,
+              g:          data.g,
+              value:      data.value,
+              ciphertext: data.ciphertext,
+              bufferSize: data.bufferSize
+            }
+          });
+        } catch (err) {
+          logEvent(`Meter ${meterId}`, 'ERROR', `Error parsing meters response: ${err.message}`);
+          res.status(500).json({ success: false, error: err.message });
+        }
+      });
     });
 
-  } catch (err) {
-    logEvent(`Meter ${meterId}`, 'ERROR', `Error during Paillier flow: ${err.message}`);
+    postReq.on('error', (err) => {
+      logEvent(`Meter ${meterId}`, 'ERROR', `HTTP request to meters failed: ${err.message}`);
+      res.status(500).json({ success: false, error: err.message });
+    });
+
+    postReq.write(payload);
+    postReq.end();
+  }).catch((err) => {
+    logEvent(`Meter ${meterId}`, 'ERROR', `Could not load HTTP module: ${err.message}`);
     res.status(500).json({ success: false, error: err.message });
-  }
+  });
 });
 
 // Endpoint: Send RSA Blind Signature Request from a Meter

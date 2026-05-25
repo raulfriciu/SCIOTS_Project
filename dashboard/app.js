@@ -8,12 +8,14 @@ let paillierBuffer = [];
 let sentMeters = new Set(); // tracks which meter IDs have already sent this cycle
 let statusInterval = null;
 let logsInterval = null;
+let plainMeterValues = {}; // Cache for plain values in the cycle
 
 // DOM Elements
 const secureModeToggle = document.getElementById('secureModeToggle');
 
 
 const statusServerE = document.getElementById('statusServerE');
+const statusMeters = document.getElementById('statusMeters');
 const statusAggregator = document.getElementById('statusAggregator');
 const statusProxy = document.getElementById('statusProxy');
 
@@ -110,10 +112,12 @@ async function checkSystemStatus() {
     const data = await res.json();
     
     updateIndicator(statusServerE, data.serverE);
+    updateIndicator(statusMeters, data.meters);
     updateIndicator(statusAggregator, data.aggregator);
     updateIndicator(statusProxy, data.proxy);
   } catch (err) {
     updateIndicator(statusServerE, false);
+    updateIndicator(statusMeters, false);
     updateIndicator(statusAggregator, false);
     updateIndicator(statusProxy, false);
   }
@@ -268,6 +272,9 @@ async function sendMeterData(meterId, scheme) {
     return;
   }
 
+  // Cache the plain value locally for the decrypted ledger reveal later
+  plainMeterValues[meterId] = Number(val);
+
   // Visual disable loading state
   btn.disabled = true;
   meterCard.style.boxShadow = `0 0 15px var(--color-primary-glow)`;
@@ -413,14 +420,6 @@ async function triggerAggregation() {
       paillierFormulaBox.classList.remove('hidden');
       paillierFormulaDetails.textContent = `c_sum = [${paillierBuffer.map(b => b.ciphertext.substring(0, 8) + '...').join(' * ')}] mod n²`;
 
-      // 3. Update Utility Receiving box state
-      utilityReceiveBox.classList.add('has-data');
-      paillierCombinedLock.textContent = '🔒';
-      paillierCombinedLock.style.color = 'var(--color-accent)';
-      paillierCombinedLock.style.filter = 'drop-shadow(0 0 15px var(--color-accent))';
-      utilityReceiveTitle.textContent = 'Suma Cifrada Empaquetada';
-      utilityReceiveDesc.textContent = '¡Candado acumulado listo! Ahora debe ser firmado digitalmente por el agregador para autenticarse antes de enviarlo para descifrar.';
-
       // 4. Hide "Sumar Homomórficamente" and show "Firmar y Enviar"
       btnAggregate.classList.add('hidden');
       btnSignSend.classList.remove('hidden');
@@ -463,11 +462,12 @@ async function triggerSignAndSend() {
       paillierCombinedLock.style.transform = 'scale(1.2)';
       
       setTimeout(() => {
+        utilityReceiveBox.classList.add('has-data');
         paillierCombinedLock.textContent = '🔏';
         paillierCombinedLock.style.color = '#fbbf24'; // Warning color (gold)
         paillierCombinedLock.style.filter = 'drop-shadow(0 0 15px #fbbf24)';
         utilityReceiveTitle.textContent = 'Firma y Cifrado Recibidos';
-        utilityReceiveDesc.textContent = '¡Cifrado firmado recibido del Agregador! Primero se debe verificar la firma digital del Agregador para autenticar la procedencia de los datos.';
+        utilityReceiveDesc.textContent = ''; // Removed description!
 
         // Enable "Verificar Firma del Agregador"
         const btnVerifySig = document.getElementById('btnVerifySig');
@@ -523,7 +523,7 @@ async function verifySignature() {
         paillierCombinedLock.style.color = 'var(--color-success)';
         paillierCombinedLock.style.filter = 'drop-shadow(0 0 15px var(--color-success))';
         utilityReceiveTitle.textContent = 'Firma RSA Verificada';
-        utilityReceiveDesc.textContent = '¡Éxito! La firma digital del Agregador es VÁLIDA y AUTÉNTICA. El origen del cifrado está garantizado. Ahora puedes descifrar la suma consolidada.';
+        utilityReceiveDesc.textContent = ''; // Removed description!
         
         btnVerifySig.classList.add('hidden');
         btnDecrypt.classList.remove('hidden');
@@ -556,15 +556,40 @@ async function decryptSum() {
     const data = await res.json();
 
     if (data.success) {
-      paillierCombinedLock.style.transform = 'scale(1.2)';
       setTimeout(() => {
-        paillierCombinedLock.textContent = '🔓';
-        paillierCombinedLock.style.color = 'var(--color-success)';
-        paillierCombinedLock.style.filter = 'drop-shadow(0 0 20px var(--color-success))';
-        utilityReceiveTitle.textContent = 'Suma Descifrada';
-        utilityReceiveDesc.textContent = '¡Éxito! Clave privada Paillier aplicada correctamente. El total ha sido descifrado y registrado en el libro.';
+        // 1. Hide the padlock container completely
+        utilityReceiveBox.classList.add('hidden');
+        
+        // 2. Hide the decryption actions panel/buttons
+        const utilityActionsPanel = btnDecrypt.parentElement;
+        if (utilityActionsPanel) {
+          utilityActionsPanel.classList.add('hidden');
+        }
 
-        // Reveal Ledger with decrypted sum
+        // 3. Render the individual meter readings inside the decrypted ledger
+        const readingsContainer = document.getElementById('ledgerReadings');
+        readingsContainer.innerHTML = '';
+        
+        const m1 = plainMeterValues[1] || 15;
+        const m2 = plainMeterValues[2] || 27;
+        const m3 = plainMeterValues[3] || 10;
+        
+        readingsContainer.innerHTML = `
+          <div class="ledger-row" style="font-size: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.04); padding-bottom: 0.25rem;">
+            <span>Consumo Hogar 1 (Dec):</span>
+            <span style="color:#60a5fa; font-weight:bold;">${m1} kWh</span>
+          </div>
+          <div class="ledger-row" style="font-size: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.04); padding-bottom: 0.25rem;">
+            <span>Consumo Comercio 2 (Dec):</span>
+            <span style="color:#60a5fa; font-weight:bold;">${m2} kWh</span>
+          </div>
+          <div class="ledger-row" style="font-size: 0.75rem; border-bottom: 1px dashed rgba(255,255,255,0.04); padding-bottom: 0.25rem;">
+            <span>Consumo Industria 3 (Dec):</span>
+            <span style="color:#60a5fa; font-weight:bold;">${m3} kWh</span>
+          </div>
+        `;
+
+        // 4. Reveal Ledger with individual values + consolidated sum
         ledgerBox.classList.remove('hidden');
         ledgerConsumoVal.textContent = `${data.decrypted} kWh`;
 
@@ -620,6 +645,13 @@ async function resetBuffer() {
       
       // Reset Utility Receiving Box
       utilityReceiveBox.classList.remove('has-data');
+      utilityReceiveBox.classList.remove('hidden');
+      
+      const utilityActionsPanel = btnDecrypt.parentElement;
+      if (utilityActionsPanel) {
+        utilityActionsPanel.classList.remove('hidden');
+      }
+
       paillierCombinedLock.textContent = '🔒';
       paillierCombinedLock.style.color = '';
       paillierCombinedLock.style.filter = '';
@@ -637,6 +669,9 @@ async function resetBuffer() {
       
       ledgerBox.classList.add('hidden');
       paillierFormulaBox.classList.add('hidden');
+      
+      // Clean cached plain meter values
+      plainMeterValues = {};
     }
   } catch (err) {
     alert('Error al resetear el buffer del agregador.');

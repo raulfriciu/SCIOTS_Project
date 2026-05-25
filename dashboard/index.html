@@ -40,10 +40,13 @@
     <!-- Global System Statuses -->
     <div class="system-status">
       <div class="status-indicator" id="statusServerE">
-        <span class="status-dot"></span> ServerE (Puerto 3000)
+        <span class="status-dot"></span> ServerE · Eléctrica (3000)
+      </div>
+      <div class="status-indicator" id="statusMeters">
+        <span class="status-dot"></span> Contadores (6000)
       </div>
       <div class="status-indicator" id="statusAggregator">
-        <span class="status-dot"></span> Agregador (Puerto 4000)
+        <span class="status-dot"></span> Agregador (4000)
       </div>
       <div class="status-indicator" id="statusProxy">
         <span class="status-dot"></span> Proxy CoAP-HTTP
@@ -129,7 +132,6 @@
         <div class="column-number">1</div>
         <h2>Contadores Inteligentes <span class="badge">Clientes</span></h2>
       </div>
-      <p class="column-description">Simulan dispositivos IoT en hogares. Envían datos cifrados o cegados con la clave pública de la eléctrica.</p>
 
       <div class="meters-container">
         <!-- Meter 1 -->
@@ -230,7 +232,6 @@
         <div class="column-number">2</div>
         <h2>Pasarela de Traducción <span class="badge">Proxy CoAP-HTTP</span></h2>
       </div>
-      <p class="column-description">El Proxy CoAP-HTTP traduce las peticiones binarias UDP (CoAP) a peticiones JSON TCP (HTTP) en tiempo real.</p>
 
       <!-- Proxy Visual Component -->
       <div class="proxy-visual-box" id="proxyBox" style="flex: 1; display: flex; flex-direction: column; justify-content: center; margin-top: 1rem;">
@@ -258,7 +259,6 @@
         <div class="column-number">3</div>
         <h2>Agregador Homomórfico <span class="badge badge-accent">Servidor</span></h2>
       </div>
-      <p class="column-description">Almacena consumos cifrados de hogares de forma ciega y los multiplica modulo n² sin descifrarlos.</p>
 
       <!-- Aggregator Container -->
       <div class="aggregator-card" id="aggregatorCard" style="flex: 1; display: flex; flex-direction: column; justify-content: space-between;">
@@ -337,7 +337,6 @@
         <div class="column-number">4</div>
         <h2>Compañía Eléctrica <span class="badge badge-server">Central</span></h2>
       </div>
-      <p class="column-description">Dueña de las claves privadas. Descifra el consumo total o firma las peticiones ciegas.</p>
 
       <div class="utility-card" id="utilityCard">
         <div class="utility-header">
@@ -356,7 +355,7 @@
             <div class="utility-receive-box" id="utilityReceiveBox">
               <div class="lock-illustration" id="paillierCombinedLock">🔒</div>
               <h4 id="utilityReceiveTitle">Esperando Cifrado Agregado</h4>
-              <p id="utilityReceiveDesc">El agregador enviará un único candado matemático acumulado.</p>
+              <p id="utilityReceiveDesc" class="utility-desc">El agregador enviará un único candado matemático acumulado.</p>
             </div>
 
             <div class="utility-actions" style="display: flex; flex-direction: column; gap: 0.5rem; width: 100%;">
@@ -366,13 +365,13 @@
 
             <!-- Ledger Results -->
             <div class="ledger-box hidden" id="ledgerBox">
-              <h4>Libro de Cuentas Consolidado</h4>
-              <div class="ledger-row">
+              <h4>Libro de Cuentas Desencriptado</h4>
+              <div id="ledgerReadings" style="display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.6rem;">
+                <!-- Dynamically populated individual readings -->
+              </div>
+              <div class="ledger-row" style="border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 0.5rem; margin-top: 0.25rem;">
                 <span>Consumo Total Registrado:</span>
                 <span class="ledger-value" id="ledgerConsumoVal">0 kWh</span>
-              </div>
-              <div class="security-stamp">
-                <span class="shield-icon">🛡️</span> Privacidad Garantizada: Los consumos de hogares individuales nunca fueron revelados.
               </div>
             </div>
           </div>
